@@ -43,7 +43,6 @@ def is_downloaded_file_ready(download_dir, file_name, timeout=600):
 
     while time.time() - start_time < timeout:
         if os.path.exists(file_path) and not (any(fname.endswith(".part") for fname in os.listdir(download_dir))):
-            print("download file completed")
             return True
         time.sleep(1)
 
