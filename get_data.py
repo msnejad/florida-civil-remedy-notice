@@ -20,7 +20,7 @@ from tqdm import tqdm
 ##### PARAMETERS #####
 start_year = 2015
 end_year = 2023
-target_dir = "working_data"
+target_dir = "working_data/downloaded_data"
 ######################
 
 civil_remedy_url = "https://apps.fldfs.com/CivilRemedy/SearchFiling.aspx"
