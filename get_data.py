@@ -36,27 +36,17 @@ def get_download_path():
         raise Exception('Unsupported Operating System')
 
 
-# Function to wait if a download is in process
-def is_downloading_process_completed(download_dir, timeout=300):
-    time.sleep(1)
-    start_time = time.time()
-    while time.time() - start_time < timeout:
-        if any(fname.endswith(".part") for fname in os.listdir(download_dir)):
-            time.sleep(1)
-        else:
-            return True  # download is complete
-    return False  # download timed out
-
-
 # Function to wait for the download to complete
-def is_downloaded_file_ready(download_dir, file_name, timeout=5):
+def is_downloaded_file_ready(download_dir, file_name, timeout=600):
     start_time = time.time()
     file_path = os.path.join(download_dir, file_name)
 
     while time.time() - start_time < timeout:
-        if os.path.exists(file_path):
+        if os.path.exists(file_path) and not (any(fname.endswith(".part") for fname in os.listdir(download_dir))):
+            print("download file completed")
             return True
         time.sleep(1)
+
     return False
 
 
@@ -65,6 +55,10 @@ def downloader(driver, start_date, end_date, file_name, download_dir, target_dir
     driver.implicitly_wait(5)
 
     # Find the submission date fields and fill them in
+    # Wait for the page to load
+    WebDriverWait(driver, 100).until(
+        EC.presence_of_element_located((By.ID, "ctl00_phPageContent_txtSubmissionStartDate"))
+    )
     start_date_field = driver.find_element(By.ID, "ctl00_phPageContent_txtSubmissionStartDate")
     start_date_field.clear()
     start_date_field.send_keys(start_date)
@@ -92,14 +86,13 @@ def downloader(driver, start_date, end_date, file_name, download_dir, target_dir
     except TimeoutException:
         # "too large to export" text did not appear
         # Wait for the downloading process to finish
-        if is_downloading_process_completed(download_dir):
-            # Wait for the file to be ready
-            if is_downloaded_file_ready(download_dir, raw_downloaded_file_name):
-                # rename the file
-                new_file_path = os.path.join(download_dir, f"{file_name}.csv")
-                os.rename(os.path.join(download_dir, raw_downloaded_file_name), new_file_path)
-                shutil.move(new_file_path, os.path.join(f"./{target_dir}/", f"{file_name}.csv"))
-                success = True
+        if is_downloaded_file_ready(download_dir, raw_downloaded_file_name):
+            # rename the file
+            new_file_path = os.path.join(download_dir, f"{file_name}.csv")
+            os.rename(os.path.join(download_dir, raw_downloaded_file_name), new_file_path)
+            shutil.move(new_file_path, os.path.join(f"./{target_dir}/", f"{file_name}.csv"))
+            time.sleep(1)
+            success = True
 
     # Press edit search button
     driver.find_element(By.ID, "ctl00_phPageContent_btnEditSearchTop").click()
@@ -218,12 +211,12 @@ driver.get(civil_remedy_url)
 
 # Loop through each month
 missing_files = []
-date_ranges = date_range_generator(start_year, end_year, "month")
+date_ranges = date_range_generator(start_year, end_year, "quarter")
 for date_range in date_ranges:
     date_range_downloader(driver, date_range, download_dir, missing_files, target_dir)
 
 # Trying shorter date ranges for failed downloads
-for date_range_type in ["half_month", "week", "half_week", "day"]:
+for date_range_type in ["month", "half_month", "week", "half_week", "day"]:
     if len(missing_files) > 0:
         print(f"\n>>>>> Trying again to download missing files - period length: {date_range_type}")
 
@@ -243,6 +236,7 @@ for date_range_type in ["half_month", "week", "half_week", "day"]:
 
 driver.quit()
 
+time.sleep(5)
 if len(missing_files) > 0:
     print("\n >> Failed to download the following files:")
     missing_files = pd.DataFrame(missing_files, columns=["date", "end_date", "title"]).drop(
