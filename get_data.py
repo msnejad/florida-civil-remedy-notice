@@ -2,7 +2,6 @@
 Downloads the civil remedy notice filings for the specified years from the Florida Department of Financial Services
 """
 
-
 import time
 from datetime import datetime
 import calendar
@@ -47,6 +46,7 @@ def is_downloading_process_completed(download_dir, timeout=300):
         else:
             return True  # download is complete
     return False  # download timed out
+
 
 # Function to wait for the download to complete
 def is_downloaded_file_ready(download_dir, file_name, timeout=5):
@@ -106,6 +106,7 @@ def downloader(driver, start_date, end_date, file_name, download_dir, target_dir
     time.sleep(1)
     return success
 
+
 def date_range_downloader(driver, date_range, download_dir, missing_files, target_dir):
     print(f">> Downloading {date_range[2]}...", end=" ")
     status = downloader(driver, date_range[0], date_range[1], f"res-{date_range[2]}", download_dir, target_dir)
@@ -121,7 +122,7 @@ def date_range_generator(start_year, end_year, period_length: str):
     This function generates a list of tuples with the start and end dates of each period.
     :param start_year: Start year for the date range
     :param end_year: End year for the date range
-    :param period_length: "day", "3-day", "week", "half_month", "month", "quarter"
+    :param period_length: "day", "half_week", "week", "half_month", "month", "quarter"
     :return: a list of tuples with the start and end dates of each period and the title for that period
     """
     periods = []
@@ -131,17 +132,23 @@ def date_range_generator(start_year, end_year, period_length: str):
                 last_day = calendar.monthrange(year, month)[1]
                 for day in range(1, last_day + 1):
                     periods.append([f"{month}/{day}/{year}", f"{month}/{day}/{year}", f"{year}-{month}-{day}"])
-    elif period_length == "3-day":
+    elif period_length == "half_week":
         for year in range(start_year, end_year + 1):
             for month in range(1, 13):
                 last_day = calendar.monthrange(year, month)[1]
-                for day in range(0, 9):
-                    start_date = datetime(year, month, day * 3 + 1).strftime("%m/%d/%Y")
-                    end_date = datetime(year, month, day * 3 + 3).strftime("%m/%d/%Y")
-                    periods.append([start_date, end_date, f"{year}-{month}-3D{day}"])
-                start_date = datetime(year, month, 28).strftime("%m/%d/%Y")
+                for week in range(0, 3):
+                    start_date = datetime(year, month, week * 7 + 1).strftime("%m/%d/%Y")
+                    end_date = datetime(year, month, week * 7 + 3).strftime("%m/%d/%Y")
+                    periods.append([start_date, end_date, f"{year}-{month}-W{week + 1}H{1}"])
+                    start_date = datetime(year, month, week * 7 + 4).strftime("%m/%d/%Y")
+                    end_date = datetime(year, month, week * 7 + 7).strftime("%m/%d/%Y")
+                    periods.append([start_date, end_date, f"{year}-{month}-W{week + 1}H{2}"])
+                start_date = datetime(year, month, 22).strftime("%m/%d/%Y")
+                end_date = datetime(year, month, 26).strftime("%m/%d/%Y")
+                periods.append([start_date, end_date, f"{year}-{month}-W{4}H{1}"])
+                start_date = datetime(year, month, 27).strftime("%m/%d/%Y")
                 end_date = datetime(year, month, last_day).strftime("%m/%d/%Y")
-                periods.append([start_date, end_date, f"{year}-{month}-3D{10}"])
+                periods.append([start_date, end_date, f"{year}-{month}-W{4}H{2}"])
     elif period_length == "week":
         for year in range(start_year, end_year + 1):
             for month in range(1, 13):
@@ -157,9 +164,9 @@ def date_range_generator(start_year, end_year, period_length: str):
         for year in range(start_year, end_year + 1):
             for month in range(1, 13):
                 start_date = datetime(year, month, 1).strftime("%m/%d/%Y")
-                end_date = datetime(year, month, 15).strftime("%m/%d/%Y")
+                end_date = datetime(year, month, 14).strftime("%m/%d/%Y")
                 periods.append([start_date, end_date, f"{year}-{month}-H1"])
-                start_date = datetime(year, month, 16).strftime("%m/%d/%Y")
+                start_date = datetime(year, month, 15).strftime("%m/%d/%Y")
                 last_day = calendar.monthrange(year, month)[1]
                 end_date = datetime(year, month, last_day).strftime("%m/%d/%Y")
                 periods.append([start_date, end_date, f"{year}-{month}-H2"])
@@ -216,7 +223,7 @@ for date_range in date_ranges:
     date_range_downloader(driver, date_range, download_dir, missing_files, target_dir)
 
 # Trying shorter date ranges for failed downloads
-for date_range_type in ["week", "3-day", "day"]:
+for date_range_type in ["half_month", "week", "half-week", "day"]:
     if len(missing_files) > 0:
         print(f"\n>>>>> Trying again to download missing files - period length: {date_range_type}")
 
@@ -238,12 +245,11 @@ driver.quit()
 
 if len(missing_files) > 0:
     print("\n >> Failed to download the following files:")
-    missing_files = pd.DataFrame(missing_files, columns=["start_date", "end_date", "title"])
+    missing_files = pd.DataFrame(missing_files, columns=["date", "end_date", "title"]).drop(columns=["title", "end_date"])
     print(missing_files)
     missing_files.to_csv(".\working_data\missing_files.csv", index=False)
 else:
     print("\n >> All files downloaded successfully")
-
 
 # organize downloaded data
 df = pd.DataFrame()
@@ -255,7 +261,7 @@ for file in tqdm(files_list):
 
 df["Submission Date"] = pd.to_datetime(df["Submission Date"])
 df["Year"] = df["Submission Date"].dt.year
-for year in range(df.Year.min(), df.Year.max() + 1):
+for year in tqdm(range(df.Year.min(), df.Year.max() + 1)):
     df[df["Year"] == year].to_csv("./working_data/civil-remedy-notice-filings-" + str(year) + ".csv", index=False)
 
 # df.to_csv(f"./working_data/civil-remedy-notice-filings-{df.Year.min()}-{df.Year.max()}.csv", index=False)
