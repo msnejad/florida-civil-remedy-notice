@@ -1,3 +1,8 @@
+"""
+Downloads the civil remedy notice filings for the specified years from the Florida Department of Financial Services
+"""
+
+
 import time
 from datetime import datetime
 import calendar
