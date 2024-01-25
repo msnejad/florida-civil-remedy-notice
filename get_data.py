@@ -18,7 +18,7 @@ import platform
 from tqdm import tqdm
 
 ##### PARAMETERS #####
-start_year = 2015
+start_year = 2013
 end_year = 2023
 target_dir = "working_data/downloaded_data"
 ######################
@@ -37,15 +37,19 @@ def get_download_path():
 
 
 # Function to wait for the download to complete
-def is_downloaded_file_ready(download_dir, file_name, timeout=600):
+def is_downloaded_file_ready(driver, download_dir, file_name, timeout=600):
     start_time = time.time()
     file_path = os.path.join(download_dir, file_name)
 
-    while time.time() - start_time < timeout:
-        if os.path.exists(file_path) and not (any(fname.endswith(".part") for fname in os.listdir(download_dir))):
+    while time.time() - start_time < timeout: # waits until resolved or timeout
+        if (os.path.exists(file_path)) and (not (any(fname.endswith(".part") for fname in os.listdir(download_dir)))):
+            # if file exists and is not currently being downloaded, return True
             return True
+        elif "too large to export" in driver.page_source:
+            # if error message is displayed, return False
+            return False
         time.sleep(1)
-
+    # if timeout is reached, return False
     return False
 
 
@@ -78,20 +82,14 @@ def downloader(driver, start_date, end_date, file_name, download_dir, target_dir
 
     raw_downloaded_file_name = "FilingSearch.csv"
 
-    try:
-        # Wait to see if "too large to export" text appears
-        WebDriverWait(driver, 5).until(
-            EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'too large to export')]")))
-    except TimeoutException:
-        # "too large to export" text did not appear
-        # Wait for the downloading process to finish
-        if is_downloaded_file_ready(download_dir, raw_downloaded_file_name):
-            # rename the file
-            new_file_path = os.path.join(download_dir, f"{file_name}.csv")
-            os.rename(os.path.join(download_dir, raw_downloaded_file_name), new_file_path)
-            shutil.move(new_file_path, os.path.join(f"./{target_dir}/", f"{file_name}.csv"))
-            time.sleep(1)
-            success = True
+    # Wait for the downloading process to finish
+    if is_downloaded_file_ready(driver, download_dir, raw_downloaded_file_name):
+        # rename the file
+        new_file_path = os.path.join(download_dir, f"{file_name}.csv")
+        os.rename(os.path.join(download_dir, raw_downloaded_file_name), new_file_path)
+        shutil.move(new_file_path, os.path.join(f"./{target_dir}/", f"{file_name}.csv"))
+        time.sleep(1)
+        success = True
 
     # Press edit search button
     driver.find_element(By.ID, "ctl00_phPageContent_btnEditSearchTop").click()
