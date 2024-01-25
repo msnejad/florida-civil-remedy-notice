@@ -10,7 +10,6 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import TimeoutException
 import pandas as pd
 import os
 import platform
@@ -18,7 +17,7 @@ import platform
 from tqdm import tqdm
 
 ##### PARAMETERS #####
-start_year = 2013
+start_year = 2014
 end_year = 2023
 target_dir = "working_data/downloaded_data"
 ######################
@@ -41,7 +40,7 @@ def is_downloaded_file_ready(driver, download_dir, file_name, timeout=600):
     start_time = time.time()
     file_path = os.path.join(download_dir, file_name)
 
-    while time.time() - start_time < timeout: # waits until resolved or timeout
+    while time.time() - start_time < timeout:  # waits until resolved or timeout
         if (os.path.exists(file_path)) and (not (any(fname.endswith(".part") for fname in os.listdir(download_dir)))):
             # if file exists and is not currently being downloaded, return True
             return True
@@ -251,6 +250,7 @@ for file in tqdm(files_list):
         df_temp = pd.read_csv("./working_data/downloaded_data/" + file)
         df = pd.concat([df, df_temp], ignore_index=True)
 
+df = df.drop_duplicates(subset=["Filing #"])
 df["Submission Date"] = pd.to_datetime(df["Submission Date"])
 df["Year"] = df["Submission Date"].dt.year
 for year in tqdm(range(df.Year.min(), df.Year.max() + 1)):
