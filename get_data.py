@@ -223,7 +223,7 @@ for date_range in date_ranges:
     date_range_downloader(driver, date_range, download_dir, missing_files, target_dir)
 
 # Trying shorter date ranges for failed downloads
-for date_range_type in ["half_month", "week", "half-week", "day"]:
+for date_range_type in ["half_month", "week", "half_week", "day"]:
     if len(missing_files) > 0:
         print(f"\n>>>>> Trying again to download missing files - period length: {date_range_type}")
 
@@ -245,7 +245,8 @@ driver.quit()
 
 if len(missing_files) > 0:
     print("\n >> Failed to download the following files:")
-    missing_files = pd.DataFrame(missing_files, columns=["date", "end_date", "title"]).drop(columns=["title", "end_date"])
+    missing_files = pd.DataFrame(missing_files, columns=["date", "end_date", "title"]).drop(
+        columns=["title", "end_date"])
     print(missing_files)
     missing_files.to_csv(".\working_data\missing_files.csv", index=False)
 else:
